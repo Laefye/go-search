@@ -9,16 +9,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisQueryStatsRepository struct {
+type RedisRepository struct {
 	rdb *redis.Client
 }
 
 const keyFormat = "search.query.%d"
 const globalKey = "search.query.global"
+const guardKeyFormat = "guard.user.%s"
 const lastDeletedMinuteKey = "search.last_deleted_minute"
+const userSkipMillis = 1 * time.Second
+const maxRequestPerMillis = 5
 
-func NewRedisQueryStatsRepository(rdb *redis.Client) *RedisQueryStatsRepository {
-	return &RedisQueryStatsRepository{rdb: rdb}
+func NewRedisRepository(rdb *redis.Client) *RedisRepository {
+	return &RedisRepository{rdb: rdb}
 }
 
 func minuteUnix(timestamp time.Time) int64 {
@@ -31,6 +34,10 @@ func NormalizeMinute(timestamp time.Time) time.Time {
 
 func formatKey(timestamp time.Time) string {
 	return fmt.Sprintf(keyFormat, minuteUnix(timestamp))
+}
+
+func formatGuardKey(userID string) string {
+	return fmt.Sprintf(guardKeyFormat, userID)
 }
 
 func zsetToEntries(results []redis.Z) []SearchStats {
@@ -48,7 +55,7 @@ func zsetToEntries(results []redis.Z) []SearchStats {
 	return entries
 }
 
-func (c *RedisQueryStatsRepository) IncrementQuery(ctx context.Context, query string, timestamp time.Time) error {
+func (c *RedisRepository) IncrementQuery(ctx context.Context, query string, timestamp time.Time) error {
 	key := formatKey(timestamp)
 
 	err := c.rdb.ZIncrBy(ctx, key, 1, query).Err()
@@ -64,7 +71,7 @@ func (c *RedisQueryStatsRepository) IncrementQuery(ctx context.Context, query st
 	return nil
 }
 
-func (c *RedisQueryStatsRepository) getQueries(ctx context.Context, key string) ([]SearchStats, error) {
+func (c *RedisRepository) getQueries(ctx context.Context, key string) ([]SearchStats, error) {
 	results, err := c.rdb.ZRevRangeWithScores(ctx, key, 0, -1).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -76,7 +83,7 @@ func (c *RedisQueryStatsRepository) getQueries(ctx context.Context, key string) 
 	return zsetToEntries(results), nil
 }
 
-func (c *RedisQueryStatsRepository) GetTopQueries(ctx context.Context, limit int64) ([]SearchStats, error) {
+func (c *RedisRepository) GetTopQueries(ctx context.Context, limit int64) ([]SearchStats, error) {
 	results, err := c.rdb.ZRevRangeWithScores(ctx, globalKey, 0, limit-1).Result()
 	if err != nil {
 		return nil, err
@@ -85,7 +92,7 @@ func (c *RedisQueryStatsRepository) GetTopQueries(ctx context.Context, limit int
 	return zsetToEntries(results), nil
 }
 
-func (c *RedisQueryStatsRepository) deleteMinute(ctx context.Context, key string) error {
+func (c *RedisRepository) deleteMinute(ctx context.Context, key string) error {
 	queries, err := c.getQueries(ctx, key)
 	if err != nil {
 		return err
@@ -106,12 +113,12 @@ func (c *RedisQueryStatsRepository) deleteMinute(ctx context.Context, key string
 	return nil
 }
 
-func (c *RedisQueryStatsRepository) setLastDeletedMinute(ctx context.Context, timestamp time.Time) error {
+func (c *RedisRepository) setLastDeletedMinute(ctx context.Context, timestamp time.Time) error {
 	timestamp = NormalizeMinute(timestamp)
 	return c.rdb.Set(ctx, lastDeletedMinuteKey, minuteUnix(timestamp), 0).Err()
 }
 
-func (c *RedisQueryStatsRepository) getLastDeletedMinute(ctx context.Context) (time.Time, error) {
+func (c *RedisRepository) getLastDeletedMinute(ctx context.Context) (time.Time, error) {
 	result, err := c.rdb.Get(ctx, lastDeletedMinuteKey).Int64()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -123,7 +130,7 @@ func (c *RedisQueryStatsRepository) getLastDeletedMinute(ctx context.Context) (t
 	return time.Unix(result*60, 0), nil
 }
 
-func (c *RedisQueryStatsRepository) Delete(ctx context.Context, to time.Time) error {
+func (c *RedisRepository) Delete(ctx context.Context, to time.Time) error {
 	from, err := c.getLastDeletedMinute(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get last deleted minute: %w", err)
@@ -147,4 +154,35 @@ func (c *RedisQueryStatsRepository) Delete(ctx context.Context, to time.Time) er
 	}
 
 	return nil
+}
+
+var incrementRequestScript = redis.NewScript(`
+local current = redis.call("INCR", KEYS[1])
+redis.call("PEXPIRE", KEYS[1], ARGV[1])
+return current
+`)
+
+func (c *RedisRepository) IncrementRequest(ctx context.Context, userID string) error {
+	key := formatGuardKey(userID)
+
+	err := incrementRequestScript.Run(ctx, c.rdb, []string{key}, userSkipMillis.Milliseconds()).Err()
+	if err != nil {
+		return fmt.Errorf("failed to increment request: %w", err)
+	}
+
+	return nil
+}
+
+func (c *RedisRepository) ShouldSkip(ctx context.Context, userID string) (bool, error) {
+	key := formatGuardKey(userID)
+
+	result, err := c.rdb.Get(ctx, key).Int()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get request count: %w", err)
+	}
+
+	return result > maxRequestPerMillis, nil
 }

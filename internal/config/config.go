@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type Config struct {
@@ -44,5 +46,13 @@ func MustLoad() *Config {
 		RabbitMQ:      getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		QueryQueue:    getEnv("RABBITMQ_QUERY_QUEUE", "search.query"),
 		WindowMinutes: windowMinutes,
+	}
+}
+
+func (c *Config) CreateRedisOptions() *redis.Options {
+	return &redis.Options{
+		Addr:     c.Redis,
+		Password: c.RedisPassword,
+		DB:       c.RedisDB,
 	}
 }

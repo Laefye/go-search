@@ -28,6 +28,7 @@ export default function () {
     'умные часы',
   ];
   const shouldSearch = Math.random() < 0.3;
+  const userId = `user-${Math.floor(Math.random() * 300)}`;
   const randomQuery = searchQueries[Math.floor(Math.random() * searchQueries.length)];
 
   let res;
@@ -35,7 +36,7 @@ export default function () {
   if (shouldSearch) {
     const responses = http.batch([
       ['GET', `http://localhost:8080/top?limit=${n}`],
-      ['GET', `http://localhost:8080/search?q=${encodeURIComponent(randomQuery)}`],
+      ['GET', `http://localhost:8080/search?q=${encodeURIComponent(randomQuery)}&user_id=${encodeURIComponent(userId)}`],
     ]);
     res = responses[0];
   } else {

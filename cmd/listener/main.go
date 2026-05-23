@@ -38,13 +38,13 @@ func main() {
 		panic(err)
 	}
 
-	counterRepo := repository.NewRedisQueryStatsRepository(redis.NewClient(&redis.Options{
-		Addr:     config.Redis,
-		Password: config.RedisPassword,
-		DB:       config.RedisDB,
-	}))
+	redis := redis.NewClient(config.CreateRedisOptions())
 
-	consumerService := consumer.NewConsumerService(counterRepo)
+	counterRepo := repository.NewRedisRepository(redis)
+
+	guardRepo := repository.NewRedisRepository(redis)
+
+	consumerService := consumer.NewConsumerService(counterRepo, guardRepo)
 	listener := rabbitmq.NewListener(ch, consumerService)
 
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)

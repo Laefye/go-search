@@ -38,7 +38,7 @@ func main() {
 
 	config := config.MustLoad()
 
-	counterRepo := repository.NewRedisQueryStatsRepository(redis.NewClient(&redis.Options{
+	counterRepo := repository.NewRedisRepository(redis.NewClient(&redis.Options{
 		Addr:     config.Redis,
 		Password: config.RedisPassword,
 		DB:       config.RedisDB,
