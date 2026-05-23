@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/Laefye/go-search/internal/service/dto"
 	"github.com/redis/go-redis/v9"
 )
 
-type QueryStatsRepository struct {
+type RedisQueryStatsRepository struct {
 	rdb *redis.Client
 }
 
@@ -18,15 +18,15 @@ const keyFormat = "search.query.%d"
 const globalKey = "search.query.global"
 const lastDeletedMinuteKey = "search.last_deleted_minute"
 
-func NewQueryStatsRepository(rdb *redis.Client) *QueryStatsRepository {
-	return &QueryStatsRepository{rdb: rdb}
+func NewRedisQueryStatsRepository(rdb *redis.Client) *RedisQueryStatsRepository {
+	return &RedisQueryStatsRepository{rdb: rdb}
 }
 
 func minuteUnix(timestamp time.Time) int64 {
 	return timestamp.Unix() / 60
 }
 
-func normalizeMinute(timestamp time.Time) time.Time {
+func NormalizeMinute(timestamp time.Time) time.Time {
 	return time.Unix(minuteUnix(timestamp)*60, 0)
 }
 
@@ -34,7 +34,27 @@ func formatKey(timestamp time.Time) string {
 	return fmt.Sprintf(keyFormat, minuteUnix(timestamp))
 }
 
-func (c *QueryStatsRepository) AddQuery(ctx context.Context, query string, timestamp time.Time) error {
+type SearchStats struct {
+	Query string
+	Count int
+}
+
+func zsetToEntries(results []redis.Z) []SearchStats {
+	entries := make([]SearchStats, 0, len(results))
+	for _, z := range results {
+		query, ok := z.Member.(string)
+		if !ok {
+			continue
+		}
+		entries = append(entries, SearchStats{
+			Query: query,
+			Count: int(z.Score),
+		})
+	}
+	return entries
+}
+
+func (c *RedisQueryStatsRepository) IncrementQuery(ctx context.Context, query string, timestamp time.Time) error {
 	key := formatKey(timestamp)
 
 	err := c.rdb.ZIncrBy(ctx, key, 1, query).Err()
@@ -50,9 +70,7 @@ func (c *QueryStatsRepository) AddQuery(ctx context.Context, query string, times
 	return nil
 }
 
-func (c *QueryStatsRepository) GetQueries(ctx context.Context, timestamp time.Time) ([]dto.QueryEntry, error) {
-	key := formatKey(timestamp)
-
+func (c *RedisQueryStatsRepository) getQueries(ctx context.Context, key string) ([]SearchStats, error) {
 	results, err := c.rdb.ZRevRangeWithScores(ctx, key, 0, -1).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -61,36 +79,33 @@ func (c *QueryStatsRepository) GetQueries(ctx context.Context, timestamp time.Ti
 		return nil, err
 	}
 
-	var queryEntries []dto.QueryEntry
-	for _, z := range results {
-		queryEntries = append(queryEntries, dto.QueryEntry{
-			Query: z.Member.(string),
-			Count: int(z.Score),
-		})
-	}
-
-	return queryEntries, nil
+	return zsetToEntries(results), nil
 }
 
-func (c *QueryStatsRepository) GetGlobalQueriesTop(ctx context.Context, limit int64) ([]dto.QueryEntry, error) {
+func (c *RedisQueryStatsRepository) GetTopQueries(ctx context.Context, limit int64) ([]SearchStats, error) {
 	results, err := c.rdb.ZRevRangeWithScores(ctx, globalKey, 0, limit-1).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	var entries []dto.QueryEntry
-	for _, z := range results {
-		entries = append(entries, dto.QueryEntry{
-			Query: z.Member.(string),
-			Count: int(z.Score),
-		})
-	}
-
-	return entries, nil
+	return zsetToEntries(results), nil
 }
 
-func (c *QueryStatsRepository) DecrGlobalQuery(ctx context.Context, query string, count int) error {
-	err := c.rdb.ZIncrBy(ctx, globalKey, float64(-count), query).Err()
+func (c *RedisQueryStatsRepository) deleteMinute(ctx context.Context, key string) error {
+	queries, err := c.getQueries(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range queries {
+		log.Printf("Decrementing global count for query: %s by %d", entry.Query, entry.Count)
+		err = c.rdb.ZIncrBy(ctx, globalKey, -float64(entry.Count), entry.Query).Err()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = c.rdb.Del(ctx, key).Err()
 	if err != nil {
 		return err
 	}
@@ -98,18 +113,13 @@ func (c *QueryStatsRepository) DecrGlobalQuery(ctx context.Context, query string
 	return nil
 }
 
-func (c *QueryStatsRepository) DeleteQueries(ctx context.Context, timestamp time.Time) error {
-	key := formatKey(timestamp)
-	return c.rdb.Del(ctx, key).Err()
-}
-
-func (c *QueryStatsRepository) SetLastDeletedMinute(ctx context.Context, timestamp time.Time) error {
-	timestamp = normalizeMinute(timestamp)
+func (c *RedisQueryStatsRepository) setLastDeletedMinute(ctx context.Context, timestamp time.Time) error {
+	timestamp = NormalizeMinute(timestamp)
 	return c.rdb.Set(ctx, lastDeletedMinuteKey, minuteUnix(timestamp), 0).Err()
 }
 
-func (c *QueryStatsRepository) GetLastDeletedMinute(ctx context.Context) (time.Time, error) {
-	result, err := c.rdb.Get(ctx, lastDeletedMinuteKey).Result()
+func (c *RedisQueryStatsRepository) getLastDeletedMinute(ctx context.Context) (time.Time, error) {
+	result, err := c.rdb.Get(ctx, lastDeletedMinuteKey).Int64()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return time.Time{}, nil
@@ -117,23 +127,31 @@ func (c *QueryStatsRepository) GetLastDeletedMinute(ctx context.Context) (time.T
 		return time.Time{}, err
 	}
 
-	var lastDeletedMinute int64
-	_, err = fmt.Sscanf(result, "%d", &lastDeletedMinute)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Unix(lastDeletedMinute*60, 0), nil
+	return time.Unix(result*60, 0), nil
 }
 
-func (c *QueryStatsRepository) DeleteUntil(ctx context.Context, from time.Time, to time.Time) error {
-	from = normalizeMinute(from)
-	to = normalizeMinute(to)
-	for t := from; !t.After(to); t = t.Add(time.Minute) {
-		err := c.DeleteQueries(ctx, t)
+func (c *RedisQueryStatsRepository) Delete(ctx context.Context, to time.Time) error {
+	from, err := c.getLastDeletedMinute(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get last deleted minute: %w", err)
+	}
+
+	if from.IsZero() {
+		from = to
+	}
+
+	log.Printf("Deleting minutes from %s to %s", from.Format(time.RFC3339), to.Format(time.RFC3339))
+	for t := from.Add(time.Minute); !t.After(to); t = t.Add(time.Minute) {
+		log.Printf("Deleting minute: %s", t.Format(time.RFC3339))
+		err := c.deleteMinute(ctx, formatKey(t))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to delete minute: %w", err)
 		}
+	}
+
+	err = c.setLastDeletedMinute(ctx, to)
+	if err != nil {
+		return fmt.Errorf("failed to set last deleted minute: %w", err)
 	}
 
 	return nil

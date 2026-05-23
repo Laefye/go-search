@@ -9,11 +9,11 @@ import (
 )
 
 type ConsumerService struct {
-	counter *repository.QueryStatsRepository
+	counter repository.QueryStatsRepository
 }
 
 func NewConsumerService(
-	counter *repository.QueryStatsRepository,
+	counter repository.QueryStatsRepository,
 ) *ConsumerService {
 	return &ConsumerService{
 		counter: counter,
@@ -21,7 +21,7 @@ func NewConsumerService(
 }
 
 func (s *ConsumerService) Consume(ctx context.Context, event *dto.SearchQueryEvent) error {
-	err := s.counter.AddQuery(ctx, event.Query, event.Timestamp)
+	err := s.counter.IncrementQuery(ctx, event.Query, event.Timestamp)
 	if err != nil {
 		return fmt.Errorf("failed to add query: %w", err)
 	}

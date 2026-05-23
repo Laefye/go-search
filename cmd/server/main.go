@@ -19,13 +19,13 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	counterRepo := repository.NewQueryStatsRepository(redis.NewClient(&redis.Options{
+	counterRepo := repository.NewRedisQueryStatsRepository(redis.NewClient(&redis.Options{
 		Addr:     config.Redis,
 		Password: config.RedisPassword,
 		DB:       config.RedisDB,
 	}))
 
-	topService := top.NewTopService(counterRepo)
+	topService := top.NewTopService(counterRepo, config.WindowMinutes)
 
 	handler := httphandler.NewHandler(topService)
 	handler.RegisterRoutes(mux)

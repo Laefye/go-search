@@ -38,13 +38,13 @@ func main() {
 
 	config := config.MustLoad()
 
-	counterRepo := repository.NewQueryStatsRepository(redis.NewClient(&redis.Options{
+	counterRepo := repository.NewRedisQueryStatsRepository(redis.NewClient(&redis.Options{
 		Addr:     config.Redis,
 		Password: config.RedisPassword,
 		DB:       config.RedisDB,
 	}))
 
-	cleanerService := cleaner.NewCleanerService(counterRepo, config.MinuteDelay)
+	cleanerService := cleaner.NewCleanerService(counterRepo, config.WindowMinutes)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

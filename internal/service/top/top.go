@@ -9,18 +9,30 @@ import (
 )
 
 type TopService struct {
-	repo *repository.QueryStatsRepository
+	repo          repository.QueryStatsRepository
+	windowMinutes int
 }
 
-func NewTopService(repo *repository.QueryStatsRepository) *TopService {
-	return &TopService{repo: repo}
+func NewTopService(repo repository.QueryStatsRepository, windowMinutes int) *TopService {
+	return &TopService{repo: repo, windowMinutes: windowMinutes}
+}
+
+func mapToDTO(entries []repository.SearchStats) []dto.QueryEntry {
+	dtoEntries := make([]dto.QueryEntry, len(entries))
+	for i, entry := range entries {
+		dtoEntries[i] = dto.QueryEntry{
+			Query: entry.Query,
+			Count: entry.Count,
+		}
+	}
+	return dtoEntries
 }
 
 func (s *TopService) GetTopQueries(ctx context.Context, limit int64) (*dto.TopQueriesResponse, error) {
-	entries, err := s.repo.GetGlobalQueriesTop(ctx, limit)
+	entries, err := s.repo.GetTopQueries(ctx, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get top queries: %w", err)
 	}
 
-	return &dto.TopQueriesResponse{Top: entries}, nil
+	return &dto.TopQueriesResponse{Top: mapToDTO(entries)}, nil
 }

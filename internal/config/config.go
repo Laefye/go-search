@@ -13,7 +13,7 @@ type Config struct {
 	RedisDB       int
 	RabbitMQ      string
 	QueryQueue    string
-	MinuteDelay   int
+	WindowMinutes int
 }
 
 func getEnv(key, defaultValue string) string {
@@ -32,9 +32,9 @@ func MustLoad() *Config {
 	if err != nil {
 		panic(fmt.Errorf("Invalid REDIS_DB value: %v", err))
 	}
-	minuteDelay, err := strconv.Atoi(getEnv("MINUTE_DELAY", "1"))
+	windowMinutes, err := strconv.Atoi(getEnv("WINDOW_MINUTES", "5"))
 	if err != nil {
-		panic(fmt.Errorf("Invalid MINUTE_DELAY value: %v", err))
+		panic(fmt.Errorf("Invalid WINDOW_MINUTES value: %v", err))
 	}
 	return &Config{
 		Port:          port,
@@ -43,6 +43,6 @@ func MustLoad() *Config {
 		RedisDB:       redisDb,
 		RabbitMQ:      getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		QueryQueue:    getEnv("RABBITMQ_QUERY_QUEUE", "search.query"),
-		MinuteDelay:   minuteDelay,
+		WindowMinutes: windowMinutes,
 	}
 }
