@@ -33,15 +33,7 @@ func main() {
 
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		config.QueryQueue,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-
+	q, err := rabbitmq.DeclareQueryQueue(ch, config.QueryQueue)
 	if err != nil {
 		panic(err)
 	}
