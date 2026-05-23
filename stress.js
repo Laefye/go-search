@@ -17,8 +17,25 @@ export const options = {
 
 export default function () {
   const n = 10;
+  const searchQueries = [
+    'iphone 15',
+    'ноутбук',
+    'кроссовки',
+  ];
+  const shouldSearch = Math.random() < 0.3;
+  const randomQuery = searchQueries[Math.floor(Math.random() * searchQueries.length)];
 
-  const res = http.get(`http://localhost:8080/top?limit=${n}`);
+  let res;
+
+  if (shouldSearch) {
+    const responses = http.batch([
+      ['GET', `http://localhost:8080/top?limit=${n}`],
+      ['GET', `http://localhost:8080/search?q=${encodeURIComponent(randomQuery)}`],
+    ]);
+    res = responses[0];
+  } else {
+    res = http.get(`http://localhost:8080/top?limit=${n}`);
+  }
 
   check(res, {
     'status is 200': (r) => r.status === 200,
