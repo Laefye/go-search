@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Laefye/go-search/internal/service/dto"
+	"github.com/Laefye/go-search/internal/rabbitmq/events"
 	"github.com/Laefye/go-search/internal/service/search"
 	"github.com/Laefye/go-search/internal/service/top"
 )
@@ -59,7 +59,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	userID := r.URL.Query().Get("user_id")
 
-	queryEvent := dto.SearchQueryEvent{
+	queryEvent := events.SearchQueryEvent{
 		Query:     query,
 		UserID:    userID,
 		Timestamp: time.Now(),

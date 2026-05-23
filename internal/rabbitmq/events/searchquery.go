@@ -1,4 +1,4 @@
-package dto
+package events
 
 import "time"
 

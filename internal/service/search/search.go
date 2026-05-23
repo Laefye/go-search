@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Laefye/go-search/internal/rabbitmq"
-	"github.com/Laefye/go-search/internal/service/dto"
+	"github.com/Laefye/go-search/internal/rabbitmq/events"
 )
 
 var ErrInvalidQuery = errors.New("invalid query")
@@ -19,7 +19,7 @@ func NewSearchService(publisher *rabbitmq.Publisher) *SearchService {
 	return &SearchService{publisher: publisher}
 }
 
-func (s *SearchService) Publish(ctx context.Context, query dto.SearchQueryEvent) error {
+func (s *SearchService) Publish(ctx context.Context, query events.SearchQueryEvent) error {
 	trimmed := strings.TrimSpace(query.Query)
 	if trimmed == "" {
 		return ErrInvalidQuery

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Laefye/go-search/internal/rabbitmq/events"
 	"github.com/Laefye/go-search/internal/service/consumer"
-	"github.com/Laefye/go-search/internal/service/dto"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -36,7 +36,7 @@ func (l *Listener) Listen(ctx context.Context, queueName string) error {
 		case <-ctx.Done():
 			return nil
 		case msg := <-msgs:
-			var queryEvent dto.SearchQueryEvent
+			var queryEvent events.SearchQueryEvent
 
 			err := json.Unmarshal(msg.Body, &queryEvent)
 			if err != nil {

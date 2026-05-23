@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/Laefye/go-search/internal/service/dto"
+	"github.com/Laefye/go-search/internal/rabbitmq/events"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -17,7 +17,7 @@ func NewPublisher(ch *amqp.Channel, queueName string) *Publisher {
 	return &Publisher{ch: ch, queueName: queueName}
 }
 
-func (p *Publisher) PublishQuery(ctx context.Context, query dto.SearchQueryEvent) error {
+func (p *Publisher) PublishQuery(ctx context.Context, query events.SearchQueryEvent) error {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return err
