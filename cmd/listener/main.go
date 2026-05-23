@@ -46,7 +46,7 @@ func main() {
 		panic(err)
 	}
 
-	counterRepo := repository.NewRedisClient(redis.NewClient(&redis.Options{
+	counterRepo := repository.NewQueryStatsRepository(redis.NewClient(&redis.Options{
 		Addr:     config.Redis,
 		Password: config.RedisPassword,
 		DB:       config.RedisDB,

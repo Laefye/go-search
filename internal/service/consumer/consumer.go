@@ -9,11 +9,11 @@ import (
 )
 
 type ConsumerService struct {
-	counter *repository.CounterRepository
+	counter *repository.QueryStatsRepository
 }
 
 func NewConsumerService(
-	counter *repository.CounterRepository,
+	counter *repository.QueryStatsRepository,
 ) *ConsumerService {
 	return &ConsumerService{
 		counter: counter,

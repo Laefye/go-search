@@ -9,10 +9,10 @@ import (
 )
 
 type TopService struct {
-	repo *repository.CounterRepository
+	repo *repository.QueryStatsRepository
 }
 
-func NewTopService(repo *repository.CounterRepository) *TopService {
+func NewTopService(repo *repository.QueryStatsRepository) *TopService {
 	return &TopService{repo: repo}
 }
 
