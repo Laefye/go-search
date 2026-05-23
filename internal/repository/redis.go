@@ -33,11 +33,6 @@ func formatKey(timestamp time.Time) string {
 	return fmt.Sprintf(keyFormat, minuteUnix(timestamp))
 }
 
-type SearchStats struct {
-	Query string
-	Count int
-}
-
 func zsetToEntries(results []redis.Z) []SearchStats {
 	entries := make([]SearchStats, 0, len(results))
 	for _, z := range results {
