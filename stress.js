@@ -21,6 +21,11 @@ export default function () {
     'iphone 15',
     'ноутбук',
     'кроссовки',
+    'телевизор',
+    'наушники',
+    'смартфон',
+    'планшет',
+    'умные часы',
   ];
   const shouldSearch = Math.random() < 0.3;
   const randomQuery = searchQueries[Math.floor(Math.random() * searchQueries.length)];
