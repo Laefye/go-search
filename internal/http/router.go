@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/Laefye/go-search/internal/service/dto"
 	"github.com/Laefye/go-search/internal/service/search"
 	"github.com/Laefye/go-search/internal/service/top"
 )
@@ -55,7 +57,16 @@ func (h *Handler) GetTopQueries(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	if err := h.searchService.Publish(r.Context(), query); err != nil {
+	userID := r.URL.Query().Get("user_id")
+
+	queryEvent := dto.SearchQueryEvent{
+		Query:     query,
+		UserID:    userID,
+		Timestamp: time.Now(),
+	}
+
+	err := h.searchService.Publish(r.Context(), queryEvent)
+	if err != nil {
 		if errors.Is(err, search.ErrInvalidQuery) {
 			http.Error(w, "Invalid query parameter", http.StatusBadRequest)
 			return

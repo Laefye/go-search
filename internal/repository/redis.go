@@ -130,7 +130,8 @@ func (c *RedisQueryStatsRepository) Delete(ctx context.Context, to time.Time) er
 	}
 
 	if from.IsZero() {
-		from = to
+		c.setLastDeletedMinute(ctx, to)
+		return nil
 	}
 
 	for t := from.Add(time.Minute); !t.After(to); t = t.Add(time.Minute) {

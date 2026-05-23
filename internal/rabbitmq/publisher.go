@@ -2,8 +2,9 @@ package rabbitmq
 
 import (
 	"context"
-	"time"
+	"encoding/json"
 
+	"github.com/Laefye/go-search/internal/service/dto"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -16,7 +17,12 @@ func NewPublisher(ch *amqp.Channel, queueName string) *Publisher {
 	return &Publisher{ch: ch, queueName: queueName}
 }
 
-func (p *Publisher) PublishQuery(ctx context.Context, query string) error {
+func (p *Publisher) PublishQuery(ctx context.Context, query dto.SearchQueryEvent) error {
+	queryBytes, err := json.Marshal(query)
+	if err != nil {
+		return err
+	}
+
 	return p.ch.PublishWithContext(
 		ctx,
 		"",
@@ -24,9 +30,8 @@ func (p *Publisher) PublishQuery(ctx context.Context, query string) error {
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(query),
-			Timestamp:   time.Now(),
+			ContentType: "application/json",
+			Body:        queryBytes,
 		},
 	)
 }

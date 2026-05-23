@@ -2,8 +2,8 @@ package rabbitmq
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/Laefye/go-search/internal/service/consumer"
 	"github.com/Laefye/go-search/internal/service/dto"
@@ -36,10 +36,15 @@ func (l *Listener) Listen(ctx context.Context, queueName string) error {
 		case <-ctx.Done():
 			return nil
 		case msg := <-msgs:
-			err := l.consumer.Consume(ctx, &dto.SearchQueryEvent{
-				Query:     string(msg.Body),
-				Timestamp: time.Now(),
-			})
+			var queryEvent dto.SearchQueryEvent
+
+			err := json.Unmarshal(msg.Body, &queryEvent)
+			if err != nil {
+				fmt.Printf("Failed to unmarshal message: %v\n", err)
+				continue
+			}
+
+			err = l.consumer.Consume(ctx, &queryEvent)
 			if err != nil {
 				return fmt.Errorf("failed to consume message: %w", err)
 			}
