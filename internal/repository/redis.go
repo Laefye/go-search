@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -98,7 +97,6 @@ func (c *RedisQueryStatsRepository) deleteMinute(ctx context.Context, key string
 	}
 
 	for _, entry := range queries {
-		log.Printf("Decrementing global count for query: %s by %d", entry.Query, entry.Count)
 		err = c.rdb.ZIncrBy(ctx, globalKey, -float64(entry.Count), entry.Query).Err()
 		if err != nil {
 			return err
@@ -140,9 +138,7 @@ func (c *RedisQueryStatsRepository) Delete(ctx context.Context, to time.Time) er
 		from = to
 	}
 
-	log.Printf("Deleting minutes from %s to %s", from.Format(time.RFC3339), to.Format(time.RFC3339))
 	for t := from.Add(time.Minute); !t.After(to); t = t.Add(time.Minute) {
-		log.Printf("Deleting minute: %s", t.Format(time.RFC3339))
 		err := c.deleteMinute(ctx, formatKey(t))
 		if err != nil {
 			return fmt.Errorf("failed to delete minute: %w", err)
