@@ -47,7 +47,7 @@ func main() {
 		DB:       config.RedisDB,
 	}))
 
-	topService := top.NewTopService(counterRepo, config.WindowMinutes)
+	topService := top.NewTopService(counterRepo)
 	searchPublisher := rabbitmq.NewPublisher(ch, q.Name)
 	searchService := search.NewSearchService(searchPublisher)
 

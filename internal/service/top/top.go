@@ -9,12 +9,11 @@ import (
 )
 
 type TopService struct {
-	repo          repository.QueryStatsRepository
-	windowMinutes int
+	repo repository.QueryStatsRepository
 }
 
-func NewTopService(repo repository.QueryStatsRepository, windowMinutes int) *TopService {
-	return &TopService{repo: repo, windowMinutes: windowMinutes}
+func NewTopService(repo repository.QueryStatsRepository) *TopService {
+	return &TopService{repo: repo}
 }
 
 func mapToDTO(entries []repository.SearchStats) []dto.QueryEntry {

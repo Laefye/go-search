@@ -9,16 +9,17 @@ import (
 )
 
 type CleanerService struct {
-	repo    repository.QueryStatsRepository
-	minutes int
+	repo repository.QueryStatsRepository
 }
 
-func NewCleanerService(repo repository.QueryStatsRepository, minutes int) *CleanerService {
-	return &CleanerService{repo: repo, minutes: minutes}
+func NewCleanerService(repo repository.QueryStatsRepository) *CleanerService {
+	return &CleanerService{repo: repo}
 }
+
+const windowMinutes = 5
 
 func (s *CleanerService) Clean(ctx context.Context, now time.Time) error {
-	to := repository.NormalizeMinute(now).Add(-time.Duration(s.minutes) * time.Minute)
+	to := repository.NormalizeMinute(now).Add(-time.Duration(windowMinutes) * time.Minute)
 
 	err := s.repo.Delete(ctx, to)
 	if err != nil {

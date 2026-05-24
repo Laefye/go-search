@@ -44,7 +44,7 @@ func main() {
 		DB:       config.RedisDB,
 	}))
 
-	cleanerService := cleaner.NewCleanerService(counterRepo, config.WindowMinutes)
+	cleanerService := cleaner.NewCleanerService(counterRepo)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
