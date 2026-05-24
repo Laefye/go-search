@@ -33,6 +33,7 @@ services:
     environment:
       PORT: 8080
       RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUERY_QUEUE: ${RABBITMQ_QUERY_QUEUE}
       REDIS_ADDR: ${REDIS_ADDR}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB}
@@ -51,6 +52,7 @@ services:
       target: listener
     environment:
       RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUERY_QUEUE: ${RABBITMQ_QUERY_QUEUE}
       REDIS_ADDR: ${REDIS_ADDR}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB}
@@ -66,7 +68,6 @@ services:
       dockerfile: Dockerfile
       target: cleaner
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
       REDIS_ADDR: ${REDIS_ADDR}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB}
