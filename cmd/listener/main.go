@@ -45,10 +45,10 @@ func main() {
 	guardRepo := repository.NewRedisRepository(redis)
 
 	consumerService := consumer.NewConsumerService(counterRepo, guardRepo)
-	listener := rabbitmq.NewListener(ch, consumerService)
+	listener := rabbitmq.NewListener(q.Name, ch, consumerService)
 
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
-	if err := listener.Listen(ctx, q.Name); err != nil {
+	if err := listener.Listen(ctx); err != nil {
 		panic(err)
 	}
 }

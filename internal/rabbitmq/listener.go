@@ -11,22 +11,25 @@ import (
 )
 
 type Listener struct {
-	consumer *consumer.ConsumerService
-	ch       *amqp.Channel
+	consumer  *consumer.ConsumerService
+	ch        *amqp.Channel
+	queueName string
 }
 
 func NewListener(
+	queueName string,
 	ch *amqp.Channel,
 	consumer *consumer.ConsumerService,
 ) *Listener {
 	return &Listener{
-		ch:       ch,
-		consumer: consumer,
+		queueName: queueName,
+		ch:        ch,
+		consumer:  consumer,
 	}
 }
 
-func (l *Listener) Listen(ctx context.Context, queueName string) error {
-	msgs, err := l.ch.Consume(queueName, "", true, false, false, false, nil)
+func (l *Listener) Listen(ctx context.Context) error {
+	msgs, err := l.ch.Consume(l.queueName, "", true, false, false, false, nil)
 	if err != nil {
 		return err
 	}
