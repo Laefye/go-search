@@ -1,3 +1,5 @@
+Ссылка на GitHub репозиторий: [https://github.com/Laefye/go-search](https://github.com/Laefye/go-search)
+
 ## Используемые сервисы
 
 - Redis - для хранение данных не зависимо от состояние сервисов
